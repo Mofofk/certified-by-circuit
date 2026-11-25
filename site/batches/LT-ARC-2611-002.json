@@ -1,0 +1,21 @@
+{
+ "batch": "LT-ARC-2611-002",
+ "supplier": "Leather Tech Safety",
+ "product": "Arc flash suit 40 cal",
+ "standard": "ARC",
+ "measured": [
+  42,
+  4,
+  253,
+  250
+ ],
+ "required": [
+  40,
+  4,
+  253,
+  253
+ ],
+ "lab": "Demo lab report",
+ "issued": "2026-11-25",
+ "reportSha256": "5589446e78496a6933db230ab65862f9662eb516e7d8b21868dd273f70642030"
+}

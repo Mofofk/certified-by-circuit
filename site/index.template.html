@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Certified by Circuit · on-chain PPE compliance</title>
+<style>
+:root{--bg:#0d1117;--card:#161b22;--line:#30363d;--fg:#e6edf3;--mute:#8b949e;--ok:#2ea043;--bad:#f85149;--acc:#f0b429}
+*{box-sizing:border-box}body{margin:0;font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--fg)}
+header{padding:28px 20px 12px;max-width:880px;margin:auto}h1{margin:0;font-size:26px}h1 span{color:var(--acc)}
+.sub{color:var(--mute);margin:6px 0 0}
+main{max-width:880px;margin:auto;padding:0 20px 60px}
+nav{display:flex;gap:8px;margin:18px 0}nav button{flex:1;padding:10px;border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:8px;cursor:pointer;font-weight:600}
+nav button.on{border-color:var(--acc);color:var(--acc)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;margin:14px 0}
+label{display:block;font-size:13px;color:var(--mute);margin:10px 0 4px}
+input,select,textarea{width:100%;padding:9px;border-radius:8px;border:1px solid var(--line);background:#0d1117;color:var(--fg);font:inherit}
+textarea{min-height:120px;font-family:ui-monospace,monospace;font-size:12px}
+.row{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:8px;align-items:end}
+.row div{font-size:13px}
+.btn{margin-top:14px;padding:11px 16px;border:0;border-radius:8px;background:var(--acc);color:#111;font-weight:700;cursor:pointer}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--fg)}
+.verdict{font-size:30px;font-weight:800;margin:6px 0}.pass{color:var(--ok)}.fail{color:var(--bad)}
+table{width:100%;border-collapse:collapse;margin-top:8px}td,th{padding:8px;border-bottom:1px solid var(--line);text-align:left;font-size:14px}
+.mono{font-family:ui-monospace,monospace;font-size:12px;word-break:break-all;color:var(--mute)}
+.pill{display:inline-block;padding:2px 8px;border-radius:99px;font-size:12px;border:1px solid var(--line);color:var(--mute)}
+.hide{display:none}ol li{margin:6px 0}
+</style>
+</head>
+<body>
+<header>
+<h1>Certified by <span>Circuit</span></h1>
+<p class="sub">Safety gear compliance decided by a NAND circuit on X Layer, not by a PDF anyone can edit.</p>
+</header>
+<main>
+<nav><button data-t="verify" class="on">Verify a batch</button><button data-t="certify">Certify a batch</button><button data-t="how">How it works</button></nav>
+
+<section id="verify">
+<div class="card">
+<label>Batch ID (printed on the QR label)</label>
+<input id="vId" placeholder="LT-GLV-2611-001">
+<button class="btn" id="vLoad">Verify</button>
+<button class="btn ghost" id="vPasteToggle">Paste a record instead</button>
+<div id="vPasteBox" class="hide"><label>Batch record (JSON)</label><textarea id="vPaste"></textarea><button class="btn" id="vPasteGo">Verify pasted record</button></div>
+</div>
+<div id="vOut"></div>
+</section>
+
+<section id="certify" class="hide">
+<div class="card">
+<label>Standard</label><select id="cStd"></select>
+<div class="row" style="margin-top:6px"><div><b>Parameter</b></div><div><b>Measured</b></div><div><b>Required</b></div><div><b>Rule</b></div></div>
+<div id="cRows"></div>
+<label>Batch ID</label><input id="cBatch" placeholder="LT-GLV-2611-003">
+<label>Supplier</label><input id="cSup" placeholder="Leather Tech Safety">
+<label>Product</label><input id="cProd" placeholder="Leather cut-resistant gloves">
+<label>Lab / test report name</label><input id="cLab" placeholder="NABL lab report no. …">
+<label>Lab report file (hashed in your browser, never uploaded)</label><input type="file" id="cFile">
+<button class="btn" id="cRun">Run the circuit</button>
+</div>
+<div id="cOut"></div>
+</section>
+
+<section id="how" class="hide">
+<div class="card">
+<ol>
+<li>The supplier enters the lab's test values for a batch. The buyer's minimums come from the standard (EN 388 gloves, arc-flash suits, SCBA sets) or the buyer's own purchase spec.</li>
+<li>All 64 input bits go into one TapeOut circuit on X Layer: four 8-bit "measured ≥ required" comparators plus an AND gate. It is <b id="hGates">224</b> NAND gates and nothing else.</li>
+<li>The circuit's <span class="mono">eval()</span> returns PASS or FAIL for each parameter and overall. Anyone can re-run it for free, so nobody can fake the result.</li>
+<li>The batch record and the lab report's SHA-256 are stored on this DeWEB site's container. The QR label on the carton opens this page with the batch ID.</li>
+<li>Buyers raise problems with the supplier's container over TapeSend.</li>
+</ol>
+<p>"Lower is better" limits, such as afterflame seconds, are entered as 255 minus the value, so the same comparator checks them.</p>
+<table>
+<tr><td>Chain</td><td>X Layer (196)</td></tr>
+<tr><td>Processor</td><td class="mono" id="hCpu"></td></tr>
+<tr><td>Circuit ID</td><td class="mono" id="hId"></td></tr>
+<tr><td>Netlist SHA-256</td><td class="mono" id="hSha"></td></tr>
+<tr><td>Engine</td><td id="hEng"></td></tr>
+</table>
+</div>
+</section>
+</main>
+<script>
+const CFG=/*CONFIG*/{};
+const NETLIST_HEX="/*NETLIST*/";
+const RPCS=["https://rpc.xlayer.tech","https://xlayerrpc.okx.com"];
+const STD={
+ EN388:{name:"EN 388:2016 gloves",p:[["Abrasion level (0–4)","≥"],["Cut level, coupe (0–5)","≥"],["Tear level (0–4)","≥"],["Puncture level (0–4)","≥"]],req:[3,3,3,2]},
+ ARC:{name:"Arc flash suit (IEC 61482 / NFPA 70E)",p:[["ATPV (cal/cm²)","≥"],["Arc rating category (1–4)","≥"],["Afterflame (s), stored as 255−s","≤"],["Char length (mm/10), stored as 255−v","≤"]],req:[40,4,253,253]},
+ SCBA:{name:"SCBA set (EN 137)",p:[["Cylinder pressure (bar ÷ 2)","≥"],["Rated duration (min)","≥"],["Mask leak test score (0–100)","≥"],["Low-pressure alarm (bar)","≥"]],req:[150,30,95,50]}
+};
+const $=id=>document.getElementById(id);
+// ---------- NAND simulator (TAP-02 §4, combinational) ----------
+function hexToBytes(h){h=h.replace(/^0x/,"");const b=new Uint8Array(h.length/2);for(let i=0;i<b.length;i++)b[i]=parseInt(h.substr(i*2,2),16);return b}
+function simulate(nl,nIn,nOut,inputs){const s=[0,1,...inputs];let p=0;while(p<nl.length){const op=nl[p++];if(op!==0)throw Error("only NAND supported");const a=(nl[p]<<16)|(nl[p+1]<<8)|nl[p+2];const b=(nl[p+3]<<16)|(nl[p+4]<<8)|nl[p+5];p+=6;s.push(1-(s[a]&s[b]))}return s.slice(s.length-nOut)}
+function toBits(vals){const bits=[];for(const [m,r] of vals){for(let i=0;i<8;i++)bits.push((m>>i)&1);for(let i=0;i<8;i++)bits.push((r>>i)&1)}return bits}
+function pack(bits){const o=new Uint8Array(Math.ceil(bits.length/8));bits.forEach((v,i)=>{if(v)o[i>>3]|=1<<(i&7)});return o}
+const hex=b=>Array.from(b,x=>x.toString(16).padStart(2,"0")).join("");
+async function rpc(method,params){let err;for(const u of RPCS){try{const r=await fetch(u,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({jsonrpc:"2.0",id:1,method,params})});const j=await r.json();if(j.error)throw Error(j.error.message);return j.result}catch(e){err=e}}throw err}
+function encEval(id,inBytes){const sel="934d06ea";const idh=BigInt(id).toString(16).padStart(64,"0");const off=(64).toString(16).padStart(64,"0");const len=inBytes.length.toString(16).padStart(64,"0");const data=hex(inBytes).padEnd(Math.ceil(inBytes.length/32)*64,"0");return "0x"+sel+idh+off+len+data}
+function decBytes(res){const h=res.slice(2);const len=parseInt(h.slice(64,128),16);return hexToBytes(h.slice(128,128+len*2))}
+async function runCircuit(measured,required){
+ const vals=measured.map((m,i)=>[m,required[i]]);const bits=toBits(vals);
+ if(CFG.cpu&&CFG.circuitId){try{const res=await rpc("eth_call",[{to:CFG.cpu,data:encEval(CFG.circuitId,pack(bits))},"latest"]);const ob=decBytes(res);const out=[];for(let i=0;i<5;i++)out.push((ob[i>>3]>>(i&7))&1);return {out,engine:"X Layer eval() on processor "+CFG.cpu.slice(0,8)+"… circuit #"+CFG.circuitId}}catch(e){console.warn(e)}}
+ return {out:simulate(hexToBytes(NETLIST_HEX),64,5,bits),engine:"Local simulation of the same netlist bytes (not yet on chain)"}
+}
+function canon(o){if(Array.isArray(o))return "["+o.map(canon).join(",")+"]";if(o&&typeof o==="object")return "{"+Object.keys(o).sort().map(k=>JSON.stringify(k)+":"+canon(o[k])).join(",")+"}";return JSON.stringify(o)}
+async function sha256(data){const b=typeof data==="string"?new TextEncoder().encode(data):data;return hex(new Uint8Array(await crypto.subtle.digest("SHA-256",b)))}
+function clamp(v){v=Math.round(Number(v)||0);return Math.max(0,Math.min(255,v))}
+async function render(el,rec){
+ const std=STD[rec.standard]||{name:rec.standard,p:rec.measured.map((_,i)=>["Parameter "+(i+1),"≥"])};
+ const {out,engine}=await runCircuit(rec.measured,rec.required);const h=await sha256(canon(rec));
+ const ok=out[4]===1;
+ el.innerHTML=`<div class="card"><span class="pill">${std.name}</span><div class="verdict ${ok?"pass":"fail"}">${ok?"PASS":"FAIL"}</div>
+ <div>${esc(rec.product||"")} · batch <b>${esc(rec.batch||"")}</b> · ${esc(rec.supplier||"")}</div>
+ <table><tr><th>Parameter</th><th>Measured</th><th>Required</th><th>Circuit</th></tr>
+ ${std.p.map((p,i)=>`<tr><td>${p[0]}</td><td>${rec.measured[i]}</td><td>${rec.required[i]}</td><td class="${out[i]?"pass":"fail"}">${out[i]?"PASS":"FAIL"}</td></tr>`).join("")}</table>
+ <p class="mono">Engine: ${engine}<br>Record SHA-256: ${h}<br>Lab report SHA-256: ${esc(rec.reportSha256||"–")}<br>Issued: ${esc(rec.issued||"–")} · Lab: ${esc(rec.lab||"–")}</p></div>`;
+ return {ok,h}
+}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+// ---------- tabs ----------
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{document.querySelectorAll("nav button").forEach(x=>x.classList.toggle("on",x===b));["verify","certify","how"].forEach(t=>$(t).classList.toggle("hide",t!==b.dataset.t))});
+// ---------- verify ----------
+async function loadBatch(id){const r=await fetch("batches/"+encodeURIComponent(id)+".json");if(!r.ok)throw Error("No batch "+id+" on this site");return r.json()}
+$("vLoad").onclick=async()=>{const id=$("vId").value.trim();if(!id)return;$("vOut").innerHTML='<div class="card">Running the circuit…</div>';try{await render($("vOut"),await loadBatch(id))}catch(e){$("vOut").innerHTML=`<div class="card fail">${esc(e.message)}</div>`}};
+$("vPasteToggle").onclick=()=>$("vPasteBox").classList.toggle("hide");
+$("vPasteGo").onclick=async()=>{try{await render($("vOut"),JSON.parse($("vPaste").value))}catch(e){$("vOut").innerHTML=`<div class="card fail">${esc(e.message)}</div>`}};
+const qs=new URLSearchParams(location.search).get("batch")||location.hash.replace(/^#/,"");if(qs){$("vId").value=qs;$("vLoad").click()}
+// ---------- certify ----------
+for(const k in STD){const o=document.createElement("option");o.value=k;o.textContent=STD[k].name;$("cStd").appendChild(o)}
+function rows(){const s=STD[$("cStd").value];$("cRows").innerHTML=s.p.map((p,i)=>`<div class="row" style="margin-top:6px"><div>${p[0]}</div><input type="number" min="0" max="255" id="m${i}"><input type="number" min="0" max="255" id="r${i}" value="${s.req[i]}"><div>${p[1]}</div></div>`).join("")}
+$("cStd").onchange=rows;rows();
+$("cRun").onclick=async()=>{
+ let rep="";const f=$("cFile").files[0];if(f)rep=await sha256(new Uint8Array(await f.arrayBuffer()));
+ const rec={batch:$("cBatch").value.trim(),supplier:$("cSup").value.trim(),product:$("cProd").value.trim(),standard:$("cStd").value,
+  measured:[0,1,2,3].map(i=>clamp($("m"+i).value)),required:[0,1,2,3].map(i=>clamp($("r"+i).value)),lab:$("cLab").value.trim(),reportSha256:rep,issued:new Date().toISOString().slice(0,10)};
+ const {ok}=await render($("cOut"),rec);
+ const blob=new Blob([JSON.stringify(rec,null,1)],{type:"application/json"});
+ const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=(rec.batch||"batch")+".json";a.className="btn";a.textContent="Download batch record";
+ const d=document.createElement("div");d.className="card";d.innerHTML=`<p>${ok?"This batch passes.":"This batch fails. It can still be published, and the label will show FAIL."} Publish the record to this site's container, then print its QR label.</p>`;d.appendChild(a);$("cOut").appendChild(d);
+};
+// ---------- how ----------
+$("hCpu").textContent=CFG.cpu||"not deployed yet";$("hId").textContent=CFG.circuitId||"–";$("hGates").textContent=hexToBytes(NETLIST_HEX).length/7;
+sha256(hexToBytes(NETLIST_HEX)).then(h=>$("hSha").textContent=h);$("hEng").textContent=CFG.cpu?"On-chain eval(), local fallback":"Local simulation (deploy pending)";
+</script>
+</body>
+</html>

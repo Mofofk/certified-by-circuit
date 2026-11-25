@@ -1,0 +1,13 @@
+import {ethers} from "ethers";
+const p=new ethers.JsonRpcProvider("https://rpc.xlayer.tech",196,{staticNetwork:true});
+const q=async(to,sig)=>{try{const r=await p.call({to,data:ethers.id(sig).slice(0,10)});return BigInt(r.slice(0,66))}catch(e){return "revert"}};
+const F="0x1f09daefa827f02cbb40967cc91b259763760761",O="0x536add8f30f03b69f6fbf29d425a816a0dc50106",BND="0x68809fd2fb343aa57d0aeb7f33defe477c9666f9";
+const fmt=v=>typeof v==="bigint"?ethers.formatEther(v)+" OKB":v;
+for(const s of ["deployFee()","createFee()","FEE()","cpuCount()","isSealed()"]) console.log("factory",s,fmt(await q(F,s)));
+for(const s of ["openFee()","OPEN_FEE()","FEE()","fee()"]) console.log("opener",s,fmt(await q(O,s)));
+console.log("binding monthlyFee",fmt(await q(BND,"monthlyFee()")));
+const cpu="0x0565EA48CA41Ae559d8d491dbb0a9ec945DB551b";
+const t=await p.call({to:cpu,data:ethers.id("transistors()").slice(0,10)}).catch(()=>null); console.log("transistors()",t);
+const tr="0x7837b10fb7910a784cc864dc36089c88d9d73132";
+for(const s of ["FEE()","MINT_FEE()","mintPrice()"]) console.log("transistor",s,fmt(await q(tr,s)));
+console.log("gasPrice",ethers.formatUnits((await p.getFeeData()).gasPrice,"gwei"),"gwei");

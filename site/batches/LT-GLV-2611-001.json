@@ -1,0 +1,21 @@
+{
+ "batch": "LT-GLV-2611-001",
+ "supplier": "Leather Tech Safety",
+ "product": "Leather cut-resistant gloves",
+ "standard": "EN388",
+ "measured": [
+  4,
+  4,
+  4,
+  3
+ ],
+ "required": [
+  3,
+  3,
+  3,
+  2
+ ],
+ "lab": "Demo lab report",
+ "issued": "2026-11-25",
+ "reportSha256": "6561e243919a4e84a9de54a5dd8b4854badccfd72e34115c056de1d94636442f"
+}

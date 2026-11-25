@@ -1,0 +1,23 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Activate 1.2.452.tape</title>
+<style>body{font-family:system-ui,Arial;background:#0b1020;color:#eee;padding:24px;max-width:520px;margin:auto}button{background:#f0b429;border:0;padding:14px 20px;font-size:18px;border-radius:10px;width:100%;margin:10px 0}code{word-break:break-all;color:#9fb3d9}</style></head><body>
+<h2>Activate Certified by Circuit</h2>
+<p>Name <code>1.2.452.tape</code><br>Container <code>0x0bE00F6E02bD5125fA3046C304a1a81CAFef96F0</code><br>Calls <code>DomainBinding.bind</code> on X Layer (<code>0x68809Fd2fb343aA57D0aeB7f33Defe477c9666f9</code>) for 120 months, paying exactly <code>monthlyFee() × 120</code> read from the chain.</p>
+<button id="go">Connect wallet &amp; activate</button><p id="s"></p>
+<script>
+const DB="0x68809Fd2fb343aA57D0aeB7f33Defe477c9666f9",C="0x0bE00F6E02bD5125fA3046C304a1a81CAFef96F0",NAME="1.2.452.tape",M=120n;
+const s=t=>document.getElementById("s").textContent=t;
+const pad=h=>h.replace(/^0x/,"").padStart(64,"0");
+function enc(){const nb=new TextEncoder().encode(NAME);let nh=[...nb].map(b=>b.toString(16).padStart(2,"0")).join("");
+ return "0x"+SEL+pad((96).toString(16))+pad(C)+pad(M.toString(16))+pad(nb.length.toString(16))+nh.padEnd(Math.ceil(nb.length/32)*64,"0")}
+let SEL="";
+document.getElementById("go").onclick=async()=>{try{
+ const e=window.ethereum||window.okxwallet;if(!e)return s("Open this page inside OKX Wallet or MetaMask's browser.");
+ const [from]=await e.request({method:"eth_requestAccounts"});
+ try{await e.request({method:"wallet_switchEthereumChain",params:[{chainId:"0xc4"}]})}catch(x){await e.request({method:"wallet_addEthereumChain",params:[{chainId:"0xc4",chainName:"X Layer",nativeCurrency:{name:"OKB",symbol:"OKB",decimals:18},rpcUrls:["https://rpc.xlayer.tech"],blockExplorerUrls:["https://www.oklink.com/x-layer"]}]})}
+ const fee=BigInt(await e.request({method:"eth_call",params:[{to:DB,data:"0x8cfd3e40"},"latest"]}));
+ SEL="69e292ce";const value="0x"+(fee*M).toString(16);
+ s("Confirm in your wallet…");
+ const h=await e.request({method:"eth_sendTransaction",params:[{from,to:DB,data:enc(),value}]});
+ s("Sent: "+h+" — wait a minute, then open the site.");
+}catch(x){s("Error: "+(x.message||x))}};
+</script></body></html>

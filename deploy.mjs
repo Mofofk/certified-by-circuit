@@ -8,11 +8,11 @@ const CPU_ARG=(process.argv.find(a=>a.startsWith("--cpu="))||"").slice(6); // us
 const RPC="https://rpc.xlayer.tech";
 const A={factory:"0x1f09daefa827f02cbb40967cc91b259763760761",opener:"0x536add8f30f03b69f6fbf29d425a816a0dc50106",
  registry:"0xd6efb7adcc9c83dc4924ad56f6a8e4e969b9adb6",binding:"0x68809fd2fb343aa57d0aeb7f33defe477c9666f9"};
-const CPU={name:"Certified by Circuit",symbol:"CERT",story:"Safety-gear compliance decided by NAND circuits on X Layer.",supply:1_000_000n,price:ethers.parseEther("0.00000001")};
+const CPU={name:"Certified by Circuit",symbol:"CERT",story:"Safety-gear compliance decided by NAND circuits on X Layer.",supply:1_000_000n,price:1n} // mintPrice is in BEM base units (8 decimals): 0.00000001 BEM;
 const abi={
  factory:["function createCPU(string name,string symbol,string story,uint256 transistorSupply,uint256 mintPrice) payable returns (address transistors,address circuits)","function deployFee() view returns (uint256)","function cpuCount() view returns (uint256)","function cpuAt(uint256) view returns (address)"],
  circuits:["function tapeout(bytes nl,uint32 nIn,uint32 nOut) payable returns (uint256)","function TAPEOUT_FEE() view returns (uint256)","function transistors() view returns (address)","function nextId() view returns (uint256)","function ownerOf(uint256) view returns (address)","function eval(uint256 id,bytes inputs) view returns (bytes)","function circuitInfo(uint256) view returns (uint32,uint32,uint32,uint32)"],
- transistors:["function mint(uint256 id,uint256 amount) payable","function NAND() view returns (uint256)","function mintPrice() view returns (uint256)","function balanceOf(address,uint256) view returns (uint256)","function FEE() view returns (uint256)"],
+ transistors:["function mint(uint256 id,uint256 amount)","function protocolFee() view returns (uint256)","function NAND() view returns (uint256)","function mintPrice() view returns (uint256)","function balanceOf(address,uint256) view returns (uint256)","function FEE() view returns (uint256)"],
  opener:["function open(address circuits,uint256 tokenId) payable returns (address)","function FEE() view returns (uint256)","function accountOf(address,uint256) view returns (address)","function isOpened(address,uint256) view returns (bool)"],
  registry:["function putFile(address container,string path,string contentType,bytes32 sha256Hash,bytes data)","function appendChunk(address container,string path,uint256 expectIndex,bytes data)","function fileInfo(address,string) view returns (uint32,string,bytes32,uint40,uint256)"]
 };
@@ -27,7 +27,7 @@ const log=(...a)=>console.log(...a);
 const factory=new ethers.Contract(A.factory,abi.factory,p), opener=new ethers.Contract(A.opener,abi.opener,p);
 const fees={deploy:await factory.deployFee(),open:await opener.FEE(),protocolMint:660_000_000_000_000n,tapeout:1_300_000_000_000_000n};
 const gates=BigInt(j.gates);
-const est=gates*CPU.price+fees.protocolMint+fees.tapeout+fees.open;
+const est=fees.tapeout+fees.open; // mint is paid in BEM, not OKB
 log("Fees: createCPU",ethers.formatUnits(fees.deploy,8)+" BEM","| mint",gates,"NAND +",okb(fees.protocolMint),"protocol | tapeout",okb(fees.tapeout),"| open container",okb(fees.open));
 log("Estimated total before gas:",okb(est));
 
@@ -41,7 +41,7 @@ if(!GO){
 if(!env.DEPLOYER_KEY) throw Error("DEPLOYER_KEY missing in .env");
 const w=new ethers.Wallet(env.DEPLOYER_KEY,p);
 const bal=await p.getBalance(w.address); log("Deployer",w.address,"balance",okb(bal));
-if(bal<est+ethers.parseEther("0.002")) throw Error("Balance too low; need about "+okb(est+ethers.parseEther("0.002")));
+if(!st.container && bal<est+ethers.parseEther("0.002")) throw Error("Balance too low; need about "+okb(est+ethers.parseEther("0.002")));
 const send=async(label,txp)=>{const tx=await txp;log(label,"tx",tx.hash);const rc=await tx.wait();if(rc.status!==1)throw Error(label+" failed");return rc};
 
 // 1. processor
@@ -62,7 +62,10 @@ const circuits=new ethers.Contract(st.circuits,abi.circuits,w), tr=new ethers.Co
 // 2. mint NAND
 const NAND=await tr.NAND(); const have=await tr.balanceOf(w.address,NAND);
 if(!st.circuitId && have<gates){const need=gates-have;const price=await tr.mintPrice();
- await send("mint",tr.mint(NAND,need,{value:need*price+fees.protocolMint}))}
+ const bemFee=need*price+(await tr.protocolFee());
+ const bemM=new ethers.Contract("0x60e62efa9405d6873c5deabd4e6cc91c25363952",["function approve(address,uint256) returns (bool)"],w);
+ await send("approve BEM for mint",bemM.approve(st.transistors,bemFee));
+ await send("mint",tr.mint(NAND,need))}
 // 3. tapeout
 if(!st.circuitId){const fee=await circuits.TAPEOUT_FEE();
  const rc=await send("tapeout",circuits.tapeout(j.hex,j.nIn,j.nOut,{value:fee}));

@@ -84,7 +84,7 @@ table{width:100%;border-collapse:collapse;margin-top:8px}td,th{padding:8px;borde
 <script>
 const CFG=/*CONFIG*/{};
 const NETLIST_HEX="/*NETLIST*/";
-const RPCS=["https://rpc.xlayer.tech","https://xlayerrpc.okx.com"];
+const RPCS=["https://rpc.xlayer.tech","https://xlayerrpc.okx.com","https://xlayer.drpc.org"];
 const STD={
  EN388:{name:"EN 388:2016 gloves",p:[["Abrasion level (0–4)","≥"],["Cut level, coupe (0–5)","≥"],["Tear level (0–4)","≥"],["Puncture level (0–4)","≥"]],req:[3,3,3,2]},
  ARC:{name:"Arc flash suit (IEC 61482 / NFPA 70E)",p:[["ATPV (cal/cm²)","≥"],["Arc rating category (1–4)","≥"],["Afterflame (s), stored as 255−s","≤"],["Char length (mm/10), stored as 255−v","≤"]],req:[40,4,253,253]},
@@ -97,7 +97,7 @@ function simulate(nl,nIn,nOut,inputs){const s=[0,1,...inputs];let p=0;while(p<nl
 function toBits(vals){const bits=[];for(const [m,r] of vals){for(let i=0;i<8;i++)bits.push((m>>i)&1);for(let i=0;i<8;i++)bits.push((r>>i)&1)}return bits}
 function pack(bits){const o=new Uint8Array(Math.ceil(bits.length/8));bits.forEach((v,i)=>{if(v)o[i>>3]|=1<<(i&7)});return o}
 const hex=b=>Array.from(b,x=>x.toString(16).padStart(2,"0")).join("");
-async function rpc(method,params){let err;for(const u of RPCS){try{const r=await fetch(u,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({jsonrpc:"2.0",id:1,method,params})});const j=await r.json();if(j.error)throw Error(j.error.message);return j.result}catch(e){err=e}}throw err}
+async function rpc(method,params){let err;for(const u of RPCS){try{const r=await fetch(u,{method:"POST",headers:{"content-type":"text/plain"},body:JSON.stringify({jsonrpc:"2.0",id:1,method,params})});const j=await r.json();if(j.error)throw Error(j.error.message);return j.result}catch(e){err=e}}throw err}
 function encEval(id,inBytes){const sel="934d06ea";const idh=BigInt(id).toString(16).padStart(64,"0");const off=(64).toString(16).padStart(64,"0");const len=inBytes.length.toString(16).padStart(64,"0");const data=hex(inBytes).padEnd(Math.ceil(inBytes.length/32)*64,"0");return "0x"+sel+idh+off+len+data}
 function decBytes(res){const h=res.slice(2);const len=parseInt(h.slice(64,128),16);return hexToBytes(h.slice(128,128+len*2))}
 async function runCircuit(measured,required){
